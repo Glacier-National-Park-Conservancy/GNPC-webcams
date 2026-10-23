@@ -1,5 +1,7 @@
 """Unit tests for YAML config loading and object construction."""
 
+from datetime import date, datetime
+
 import pytest
 
 from config import (
@@ -51,6 +53,39 @@ webcams:
     by_name = {w.name: w for w in config.webcams}
     assert by_name["dark"].blackout is True
     assert by_name["live"].blackout is False
+
+
+def test_blackout_dates_parsed(tmp_path):
+    cfg = tmp_path / "webcams.yaml"
+    cfg.write_text(
+        """
+webcams:
+  - name: dark
+    file_name_on_server: dark.jpg
+    blackout_dates: [2026-10-26, "2026-10-27"]
+    logo_placements: []
+  - name: live
+    file_name_on_server: live.jpg
+    logo_placements: []
+"""
+    )
+    by_name = {w.name: w for w in load_config(str(cfg)).webcams}
+    assert by_name["dark"].blackout_dates == [date(2026, 10, 26), date(2026, 10, 27)]
+    assert by_name["live"].blackout_dates == []
+
+    cam = create_webcam_from_config(by_name["dark"])
+    assert cam.blackout_dates == {date(2026, 10, 26), date(2026, 10, 27)}
+
+
+@pytest.mark.parametrize("bad", ["2026-13-01", datetime(2026, 10, 26, 8)])
+def test_blackout_dates_reject_what_would_never_match(bad):
+    with pytest.raises((ValueError, TypeError)):
+        WebcamConfig(
+            name="x",
+            file_name_on_server="x.jpg",
+            logo_placements=[],
+            blackout_dates=[bad],
+        )
 
 
 def test_single_and_grouped_placements_parsed():

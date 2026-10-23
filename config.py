@@ -5,6 +5,7 @@ Configuration dataclasses and YAML loading for GNPC webcams.
 import logging
 import os
 from dataclasses import asdict, dataclass, field
+from datetime import date
 from typing import List, Optional, Tuple, Union
 
 import yaml
@@ -102,6 +103,8 @@ class WebcamConfig:
     file_name_on_server: Optional[str] = None
     url: Optional[str] = None
     blackout: bool = False
+    # Mountain Time days to black the feed out, midnight to midnight.
+    blackout_dates: List[date] = field(default_factory=list)
 
     def __post_init__(self):
         if bool(self.file_name_on_server) == bool(self.url):
@@ -109,6 +112,12 @@ class WebcamConfig:
                 f"Webcam {self.name!r} needs exactly one source: "
                 "file_name_on_server (FTP) or url (HTTP)"
             )
+        # YAML reads an unquoted 2026-10-26 as a date; a quoted one, a typo or
+        # a date with a time arrives as something else, and has to fail here
+        # rather than never match.
+        self.blackout_dates = [
+            d if type(d) is date else date.fromisoformat(d) for d in self.blackout_dates
+        ]
 
 
 @dataclass
@@ -179,6 +188,7 @@ def load_config(config_file: str = "webcams.yaml") -> AppConfig:
             url=webcam_data.get("url"),
             logo_placements=logo_placements,
             blackout=webcam_data.get("blackout", False),
+            blackout_dates=webcam_data.get("blackout_dates", []),
         )
         webcams.append(webcam)
 
@@ -229,6 +239,7 @@ def create_webcam_from_config(webcam_config: WebcamConfig):
             url=webcam_config.url,
             logo_placements=logo_placements,
             blackout=webcam_config.blackout,
+            blackout_dates=webcam_config.blackout_dates,
         )
 
     return Webcam(
@@ -236,6 +247,7 @@ def create_webcam_from_config(webcam_config: WebcamConfig):
         file_name_on_server=webcam_config.file_name_on_server,
         logo_placements=logo_placements,
         blackout=webcam_config.blackout,
+        blackout_dates=webcam_config.blackout_dates,
     )
 
 

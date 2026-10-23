@@ -40,12 +40,21 @@ class HttpWebcam(Webcam):
     bad object answers 304 until the source replaces it.
     """
 
-    def __init__(self, name, url, logo_placements=None, blackout=False, timeout=20):
+    def __init__(
+        self,
+        name,
+        url,
+        logo_placements=None,
+        blackout=False,
+        blackout_dates=(),
+        timeout=20,
+    ):
         super().__init__(
             name,
             file_name_on_server=None,
             logo_placements=logo_placements,
             blackout=blackout,
+            blackout_dates=blackout_dates,
         )
         self.url = url
         self.timeout = timeout
