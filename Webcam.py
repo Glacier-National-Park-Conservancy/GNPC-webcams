@@ -124,12 +124,23 @@ class Webcam:
     _upload_lock = threading.Lock()
 
     def __init__(
-        self, name, file_name_on_server=None, logo_placements=None, blackout=False
+        self,
+        name,
+        file_name_on_server=None,
+        logo_placements=None,
+        blackout=False,
+        blackout_dates=(),
     ):
         self.name = name
         self.file_buffer = io.BytesIO()
         self.file_name_on_server = file_name_on_server
         self.blackout = blackout
+        # Mountain Time calendar days on which the feed is blacked out, midnight
+        # to midnight, on top of the standing `blackout` flag.
+        self.blackout_dates = frozenset(blackout_dates)
+        # Whether the frame being processed is blacked out, decided once per
+        # process() so a run that straddles midnight is consistent.
+        self._blacked_out = False
 
         # Process logo_placements (supports both single overlays and grouped overlays)
         overlay_list = logo_placements or []
@@ -221,6 +232,11 @@ class Webcam:
                     )
                     raise
 
+    def _blackout_active(self):
+        """Whether the feed is blacked out right now."""
+        today = datetime.now(MOUNTAIN_TIME).date()
+        return self.blackout or today in self.blackout_dates
+
     def _apply_blackout(self):
         """Replace the downloaded image with a black frame of the same size.
 
@@ -244,7 +260,7 @@ class Webcam:
         black frame, but the per-feed filenames (via each overlay's subname)
         are preserved so the same set of images is published.
         """
-        if self.blackout:
+        if self._blacked_out:
             logger.debug(f"  {self.name}: Blackout mode, skipping logo overlays")
             for overlay in self.overlays:
                 self.file_buffer.seek(0)
@@ -390,7 +406,8 @@ class Webcam:
                 if self.source_unchanged:
                     logger.info(f"{self.name}: Source unchanged since last publish")
                     return
-                if self.blackout:
+                self._blacked_out = self._blackout_active()
+                if self._blacked_out:
                     self._apply_blackout()
                 self._apply_overlays()
                 return  # Success - exit early

@@ -33,7 +33,7 @@ webcams:
         img: overlays/logo-shaded.png
 ```
 
-Each entry in `logo_placements` produces one published image; `subname` is appended to the output filename (e.g. `lpp_nps.jpg`). The published name comes from `name`, so `- name: lpp` uploads `lpp.jpg`. Setting `blackout: true` on a webcam publishes plain black frames in place of the feed (used when a camera is misaimed).
+Each entry in `logo_placements` produces one published image; `subname` is appended to the output filename (e.g. `lpp_nps.jpg`). The published name comes from `name`, so `- name: lpp` uploads `lpp.jpg`. Setting `blackout: true` on a webcam publishes plain black frames in place of the feed (used when a camera is misaimed). To black a feed out on particular days instead, list them under `blackout_dates` (e.g. `blackout_dates: [2026-10-26]`); each date covers midnight to midnight Mountain Time, and the feed returns on its own the next day.
 
 ### Image Sources
 
