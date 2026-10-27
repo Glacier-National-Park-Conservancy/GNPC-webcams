@@ -327,3 +327,49 @@ def test_nps_logos_stay_inside_the_nps_index_crop():
     assert wide_nps_logos
     for logo in wide_nps_logos:
         assert logo.place[0] <= 189, f"logo at x={logo.place[0]} leaves a gap"
+
+
+def test_status_notes_parsed_and_expire(tmp_path):
+    cfg = tmp_path / "webcams.yaml"
+    cfg.write_text(
+        """
+webcams:
+  - name: noted
+    file_name_on_server: noted.jpg
+    status_note: Sensor offline, waiting on PurpleAir
+    logo_placements: []
+  - name: lapsing
+    file_name_on_server: lapsing.jpg
+    status_note: Re-aim scheduled
+    status_note_until: 2026-10-27
+    logo_placements: []
+  - name: quiet
+    file_name_on_server: quiet.jpg
+    logo_placements: []
+allsky_videos:
+  - name: allsky
+    file_name_on_server: allsky.mp4
+    logo_place: [0, 619]
+    logo_size: [299, 68]
+    status_note: Allsky camera dome fogged
+"""
+    )
+    config = load_config(str(cfg))
+
+    assert config.active_status_notes(date(2026, 10, 27)) == {
+        "noted": "Sensor offline, waiting on PurpleAir",
+        "lapsing": "Re-aim scheduled",
+        "allsky": "Allsky camera dome fogged",
+    }
+    assert "lapsing" not in config.active_status_notes(date(2026, 10, 28))
+
+
+def test_status_note_until_rejects_non_dates():
+    with pytest.raises(ValueError):
+        WebcamConfig(
+            name="cam",
+            logo_placements=[],
+            file_name_on_server="cam.jpg",
+            status_note="x",
+            status_note_until="next week",
+        )

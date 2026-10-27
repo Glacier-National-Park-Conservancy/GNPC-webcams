@@ -35,6 +35,8 @@ webcams:
 
 Each entry in `logo_placements` produces one published image; `subname` is appended to the output filename (e.g. `lpp_nps.jpg`). The published name comes from `name`, so `- name: lpp` uploads `lpp.jpg`. Setting `blackout: true` on a webcam publishes plain black frames in place of the feed (used when a camera is misaimed). To black a feed out on particular days instead, list them under `blackout_dates` (e.g. `blackout_dates: [2026-10-26]`); each date covers midnight to midnight Mountain Time, and the feed returns on its own the next day.
 
+To flag a known issue, give the camera a `status_note` (e.g. `status_note: Sensor 111211 offline, PurpleAir ticket open`). Each warning or error that camera logs then ends with `[known issue: ...]`, as does its traceback in the cron email, so whoever reads the logs can tell it is already being handled. That includes warnings from shared code like the PurpleAir badge, because each camera runs in a thread named after it. Add `status_note_until: 2026-11-15` to make the note lapse after that Mountain Time day, so a forgotten note can't hide a new problem. Allsky videos take the same two keys.
+
 ### Image Sources
 
 A webcam draws its frame from exactly one source — the loader rejects an entry that gives both or neither:
