@@ -2,9 +2,10 @@
 Configuration dataclasses and YAML loading for GNPC webcams.
 """
 
+import json
 import logging
 import os
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from datetime import date
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -233,6 +234,87 @@ def load_config(config_file: str = "webcams.yaml") -> AppConfig:
         len(config.allsky_videos),
     )
 
+    return config
+
+
+# The keys comms-tools may override per camera; allsky videos have no blackout.
+STATUS_OVERRIDE_KEYS = frozenset({"status_note", "status_note_until"})
+WEBCAM_OVERRIDE_KEYS = STATUS_OVERRIDE_KEYS | {"blackout", "blackout_dates"}
+
+
+def _check_override_types(entry: dict):
+    """Raise ValueError unless each override has the type the file format gives it."""
+    if "blackout" in entry and type(entry["blackout"]) is not bool:
+        raise ValueError("blackout must be true or false")
+    dates = entry.get("blackout_dates", [])
+    if not isinstance(dates, list) or not all(isinstance(d, str) for d in dates):
+        raise ValueError("blackout_dates must be a list of YYYY-MM-DD strings")
+    note = entry.get("status_note")
+    if note is not None and not (isinstance(note, str) and note.strip()):
+        raise ValueError("status_note must be text or null")
+    until = entry.get("status_note_until")
+    if until is not None and not isinstance(until, str):
+        raise ValueError("status_note_until must be a YYYY-MM-DD string or null")
+
+
+def apply_status_overrides(
+    config: AppConfig, overrides_file: str = "status-overrides.json"
+) -> AppConfig:
+    """Lay the overrides file comms-tools writes over the YAML configuration.
+
+    The file is {"cameras": {name: {key: value}}}. A key that is present
+    replaces the YAML value, null included; an absent key leaves it. Anything
+    malformed is logged and skipped, a camera at a time where possible, so a bad
+    edit falls back to webcams.yaml rather than stopping the run.
+    """
+    path = resolve_path(overrides_file)
+    try:
+        with open(path) as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        return config
+    except (OSError, ValueError) as e:
+        logger.warning(f"Ignoring status overrides in {path}: {e}")
+        return config
+
+    if (
+        not isinstance(data, dict)
+        or set(data) - {"cameras"}
+        or not isinstance(data.get("cameras", {}), dict)
+    ):
+        logger.warning(
+            f'Ignoring status overrides in {path}: expected {{"cameras": {{...}}}}'
+        )
+        return config
+    overrides = dict(data.get("cameras", {}))
+
+    def overridden(cam, allowed_keys):
+        if cam.name not in overrides:
+            return cam
+        entry = overrides.pop(cam.name)
+        try:
+            if not isinstance(entry, dict):
+                raise ValueError("expected an object")
+            unknown = set(entry) - allowed_keys
+            if unknown:
+                raise ValueError(f"unknown keys {sorted(unknown)}")
+            _check_override_types(entry)
+            # replace() re-runs __post_init__, which parses and checks the dates.
+            cam = replace(cam, **entry)
+        except (TypeError, ValueError) as e:
+            logger.warning(f"Ignoring status overrides for {cam.name}: {e}")
+            return cam
+        logger.info(f"{cam.name}: status overrides applied ({', '.join(entry)})")
+        return cam
+
+    config = AppConfig(
+        webcams=[overridden(w, WEBCAM_OVERRIDE_KEYS) for w in config.webcams],
+        allsky_videos=[
+            overridden(v, STATUS_OVERRIDE_KEYS) for v in config.allsky_videos
+        ],
+    )
+    for name in overrides:
+        logger.warning(f"Ignoring status overrides for unknown camera {name!r}")
     return config
 
 

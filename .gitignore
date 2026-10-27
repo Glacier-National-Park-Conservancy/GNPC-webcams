@@ -28,4 +28,5 @@ debug/
 
 # Runtime state written next to the code on the Pi
 webcams.lock
+status-overrides.json
 webcams.log*
