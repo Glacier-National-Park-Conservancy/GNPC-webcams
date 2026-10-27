@@ -9,11 +9,12 @@ import logging
 import sys
 import threading
 import traceback
+from datetime import datetime
 from time import sleep
 
 from dotenv import load_dotenv
 
-from logging_config import setup_logging
+from logging_config import install_status_notes, setup_logging
 from paths import resolve_path
 
 load_dotenv(resolve_path("environment.env"))
@@ -26,7 +27,7 @@ from config import (
     load_config,
 )
 from single_instance import AlreadyRunning, SingleInstance
-from Webcam import Webcam
+from Webcam import MOUNTAIN_TIME, Webcam
 
 # Load configuration from YAML
 app_config = load_config("webcams.yaml")
@@ -43,6 +44,9 @@ allsky_videos = [
 # Combine all cameras
 cams = webcams + allsky_videos
 
+status_notes = app_config.active_status_notes(datetime.now(MOUNTAIN_TIME).date())
+install_status_notes(status_notes)
+
 # Seconds to idle between the two rounds of a run. Cron fires every minute and
 # only one run executes at a time, so a run has to finish inside its minute or
 # the next tick is skipped by the lock. Two rounds plus this gap must leave room
@@ -58,7 +62,9 @@ def handle_cam(cam: Webcam):
         logger.info(f"Completed {cam.name}")
 
     except Exception:
-        return f"{cam.name} failed. {traceback.format_exc()}"
+        note = status_notes.get(cam.name)
+        known = f" [known issue: {note}]" if note else ""
+        return f"{cam.name} failed.{known} {traceback.format_exc()}"
 
 
 def main():
@@ -66,7 +72,10 @@ def main():
     errors = []
 
     for cam in cams:
-        thread = threading.Thread(target=lambda cam=cam: errors.append(handle_cam(cam)))
+        # Named for the camera so StatusNoteFilter can tell whose records are whose.
+        thread = threading.Thread(
+            name=cam.name, target=lambda cam=cam: errors.append(handle_cam(cam))
+        )
         threads.append(thread)
         thread.start()
 

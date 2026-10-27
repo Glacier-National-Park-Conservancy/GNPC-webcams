@@ -6,7 +6,7 @@ import logging
 import os
 from dataclasses import asdict, dataclass, field
 from datetime import date
-from typing import List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import yaml
 
@@ -90,6 +90,16 @@ class AirQualityConfig:
 OverlayConfig = Union[LogoConfig, AirQualityConfig]
 
 
+def _as_date(value) -> date:
+    """A YAML date field as a date.
+
+    YAML reads an unquoted 2026-10-26 as a date; a quoted one, a typo or a date
+    with a time arrives as something else, and has to fail here rather than
+    never match.
+    """
+    return value if type(value) is date else date.fromisoformat(value)
+
+
 @dataclass
 class WebcamConfig:
     """Configuration for a webcam.
@@ -105,6 +115,10 @@ class WebcamConfig:
     blackout: bool = False
     # Mountain Time days to black the feed out, midnight to midnight.
     blackout_dates: List[date] = field(default_factory=list)
+    # A known issue with this camera, appended to its warnings and errors.
+    status_note: Optional[str] = None
+    # Last Mountain Time day the note applies; None keeps it until removed.
+    status_note_until: Optional[date] = None
 
     def __post_init__(self):
         if bool(self.file_name_on_server) == bool(self.url):
@@ -112,12 +126,9 @@ class WebcamConfig:
                 f"Webcam {self.name!r} needs exactly one source: "
                 "file_name_on_server (FTP) or url (HTTP)"
             )
-        # YAML reads an unquoted 2026-10-26 as a date; a quoted one, a typo or
-        # a date with a time arrives as something else, and has to fail here
-        # rather than never match.
-        self.blackout_dates = [
-            d if type(d) is date else date.fromisoformat(d) for d in self.blackout_dates
-        ]
+        self.blackout_dates = [_as_date(d) for d in self.blackout_dates]
+        if self.status_note_until is not None:
+            self.status_note_until = _as_date(self.status_note_until)
 
 
 @dataclass
@@ -128,6 +139,12 @@ class AllskyVideoConfig:
     file_name_on_server: str
     logo_place: Tuple[int, int]
     logo_size: Tuple[int, int]
+    status_note: Optional[str] = None
+    status_note_until: Optional[date] = None
+
+    def __post_init__(self):
+        if self.status_note_until is not None:
+            self.status_note_until = _as_date(self.status_note_until)
 
 
 @dataclass
@@ -136,6 +153,15 @@ class AppConfig:
 
     webcams: List[WebcamConfig] = field(default_factory=list)
     allsky_videos: List[AllskyVideoConfig] = field(default_factory=list)
+
+    def active_status_notes(self, today: date) -> Dict[str, str]:
+        """Each camera's status note that still applies on `today`, by name."""
+        return {
+            cam.name: cam.status_note
+            for cam in [*self.webcams, *self.allsky_videos]
+            if cam.status_note
+            and (cam.status_note_until is None or today <= cam.status_note_until)
+        }
 
 
 OVERLAY_CONFIG_TYPES = {
@@ -189,6 +215,8 @@ def load_config(config_file: str = "webcams.yaml") -> AppConfig:
             logo_placements=logo_placements,
             blackout=webcam_data.get("blackout", False),
             blackout_dates=webcam_data.get("blackout_dates", []),
+            status_note=webcam_data.get("status_note"),
+            status_note_until=webcam_data.get("status_note_until"),
         )
         webcams.append(webcam)
 

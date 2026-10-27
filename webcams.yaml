@@ -8,10 +8,21 @@
 # to the visible edge at every width — shading hidden under the crop costs nothing,
 # a gap between the crop edge and the logo is what shows. Re-measure if NPS
 # restyles: the crop is (naturalWidth * scale - boxWidth) / scale / 2.
+#
+# Any camera (allsky videos included) can carry a `status_note` describing a
+# known issue, so whoever reads the logs knows it is already being handled. The
+# note is appended to every warning and error that camera logs, as
+# "[known issue: ...]". Add `status_note_until: 2026-11-15` to stop applying it
+# after that Mountain Time day, so a forgotten note can't mask a new problem.
+#
+#   - name: lpp
+#     status_note: Camera offline for winter maintenance; NPS is aware
+#     status_note_until: 2026-11-15
 
 webcams:
 
   - name: dark_sky
+    status_note: "Dusty Star Observatory is under construction and offline"
     file_name_on_server: stmaryallsky-resize.jpg
     logo_placements:
       - type: logo
@@ -25,6 +36,7 @@ webcams:
         cover_date: true
 
   - name: lpp
+    status_note: "Logan Pass PurpleAir sensor 192039 is taken down for the winter, so the badge drops out"
     file_name_on_server: lpp.jpg
     logo_placements:
       # NPS feed: logo only, no conditions badge.
@@ -42,6 +54,7 @@ webcams:
           sensor_index: 192039  # PurpleAir "Logan Pass"
 
   - name: smv
+    status_note: "Logan Pass PurpleAir sensor 192039 is taken down for the winter, so the badge drops out"
     file_name_on_server: smv.jpg
     logo_placements:
       # Grouped placements: add more overlays to a group to composite them
@@ -62,6 +75,7 @@ webcams:
           sensor_index: 192039  # PurpleAir "Logan Pass"
 
   - name: hlt
+    status_note: "Logan Pass PurpleAir sensor 192039 is taken down for the winter, so the badge drops out"
     file_name_on_server: hlt.jpg
     logo_placements:
       # NPS feed: logo only, no conditions badge.
@@ -79,6 +93,7 @@ webcams:
           sensor_index: 192039  # PurpleAir "Logan Pass"
 
   - name: mg
+    status_note: "Many Glacier PurpleAir sensor 111457 is taken down for the winter, so the badge drops out"
     file_name_on_server: mg.jpg
     logo_placements:
       # NPS feed: logo only, no air quality widget.
@@ -121,6 +136,7 @@ webcams:
   # smv (which looks the other way, down the valley from Logan Pass). NPS burns
   # its own caption/timestamp into the top edge, so no date is stamped here.
   - name: stmary
+    status_note: "PurpleAir sensor 83937 has no temperature or humidity module, so the badge shows AQI only by design"
     url: https://www.nps.gov/webcams-glac/StMaryPTZ.jpg
     logo_placements:
       - - type: logo
@@ -154,6 +170,7 @@ webcams:
   # eight.
 
   - name: apgar_mtn
+    status_note: "Refreshes far more slowly than the other cameras; an hours-old frame is the camera, not the pipeline. PurpleAir sensor 111211 also goes offline for days at a time; the badge falls back to 190835 and drops out only when both are down"
     # Slower refresh than the rest — its frame can be hours old while the
     # others are within a minute. That is the camera, not the pipeline.
     url: https://www.nps.gov/webcams-glac/ApgarLookout-01.jpg
@@ -167,6 +184,7 @@ webcams:
           fallback_sensors: [190835]  # PurpleAir "Lake McDonald - Apgar"
 
   - name: apgar_village
+    status_note: "PurpleAir sensor 111211 goes offline for days at a time; the badge falls back to 190835 and drops out only when both are down"
     url: https://www.nps.gov/webcams-glac/ApgarVillage.jpg
     logo_placements:
       - - type: logo
@@ -178,6 +196,7 @@ webcams:
           fallback_sensors: [190835]  # PurpleAir "Lake McDonald - Apgar"
 
   - name: lake_mcdonald
+    status_note: "PurpleAir sensor 111211 goes offline for days at a time; the badge falls back to 190835 and drops out only when both are down"
     url: https://www.nps.gov/webcams-glac/LakeMcDonald1.jpg
     logo_placements:
       - - type: logo
@@ -190,6 +209,7 @@ webcams:
 
   # NPS re-aims this PTZ periodically, so don't assume the framing is fixed.
   - name: lake_mcdonald2
+    status_note: "PurpleAir sensor 111211 goes offline for days at a time; the badge falls back to 190835 and drops out only when both are down"
     url: https://www.nps.gov/webcams-glac/lakemcdonaldptz.jpg
     logo_placements:
       - - type: logo
@@ -202,6 +222,7 @@ webcams:
           scale: 0.67  # 1280x720 frame
 
   - name: apgar_visitor_center
+    status_note: "PurpleAir sensor 111211 goes offline for days at a time; the badge falls back to 190835 and drops out only when both are down"
     url: https://www.nps.gov/webcams-glac/ApgarVisitorCenter.jpg
     logo_placements:
       - - type: logo
@@ -214,6 +235,7 @@ webcams:
           scale: 0.83  # 1600x1200 frame
 
   - name: middle_fork
+    status_note: "PurpleAir sensor 111211 goes offline for days at a time; the badge falls back to 190835 and drops out only when both are down"
     url: https://www.nps.gov/webcams-glac/MiddleForkBridge.jpg
     logo_placements:
       - - type: logo
@@ -226,6 +248,7 @@ webcams:
           scale: 0.67  # 1280x720 frame
 
   - name: headquarters
+    status_note: "PurpleAir sensor 111211 goes offline for days at a time; the badge falls back to 190835 and drops out only when both are down"
     url: https://www.nps.gov/webcams-glac/Headquarters.jpg
     logo_placements:
       - - type: logo
@@ -238,6 +261,7 @@ webcams:
           scale: 0.83  # 1600x1200 frame
 
   - name: west_entrance
+    status_note: "PurpleAir sensor 111211 goes offline for days at a time; the badge falls back to 190835 and drops out only when both are down"
     url: https://www.nps.gov/webcams-glac/WestEntrance.jpg
     logo_placements:
       - - type: logo
@@ -251,6 +275,7 @@ webcams:
 
 allsky_videos:
   - name: allsky
+    status_note: "Dusty Star Observatory is under construction and offline"
     file_name_on_server: allsky.mp4
     logo_place: [0, 619]
     logo_size: [299, 68]

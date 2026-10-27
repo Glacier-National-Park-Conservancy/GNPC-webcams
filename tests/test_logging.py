@@ -49,3 +49,38 @@ def test_rotation_caps_log_size(monkeypatch, tmp_path):
         assert (tmp_path / "rotate.log.1").exists()
     finally:
         _teardown_root_handlers()
+
+
+def test_status_note_tags_a_noted_cameras_warnings_once(monkeypatch, tmp_path):
+    import threading
+
+    from logging_config import install_status_notes
+
+    log_file = tmp_path / "notes.log"
+    monkeypatch.setenv("LOG_OUTPUT", "file")
+    monkeypatch.setenv("LOG_FILE", str(log_file))
+    monkeypatch.setenv("LOG_LEVEL", "INFO")
+
+    setup_logging()
+    # A second handler sees the same record; the note must still appear once.
+    logging.root.addHandler(logging.FileHandler(tmp_path / "second.log"))
+    try:
+        install_status_notes({"noted": "Sensor offline"})
+        logger = logging.getLogger("status-note-test")
+
+        def log_all():
+            logger.info("info from %s", threading.current_thread().name)
+            logger.warning("warning from %s", threading.current_thread().name)
+
+        for name in ("noted", "quiet"):
+            thread = threading.Thread(name=name, target=log_all)
+            thread.start()
+            thread.join()
+
+        for path in (log_file, tmp_path / "second.log"):
+            lines = path.read_text().splitlines()
+            assert sum("[known issue: Sensor offline]" in line for line in lines) == 1
+            tagged = next(line for line in lines if "known issue" in line)
+            assert "warning from noted" in tagged
+    finally:
+        _teardown_root_handlers()
