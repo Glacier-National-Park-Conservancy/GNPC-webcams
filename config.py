@@ -111,6 +111,9 @@ class WebcamConfig:
 
     name: str
     logo_placements: List[Union[OverlayConfig, List[OverlayConfig]]]
+    # Display only: the heading glacier.org shows and the valley it's grouped in.
+    title: Optional[str] = None
+    valley: Optional[str] = None
     file_name_on_server: Optional[str] = None
     url: Optional[str] = None
     blackout: bool = False
@@ -140,6 +143,8 @@ class AllskyVideoConfig:
     file_name_on_server: str
     logo_place: Tuple[int, int]
     logo_size: Tuple[int, int]
+    title: Optional[str] = None
+    valley: Optional[str] = None
     status_note: Optional[str] = None
     status_note_until: Optional[date] = None
 
@@ -211,6 +216,8 @@ def load_config(config_file: str = "webcams.yaml") -> AppConfig:
 
         webcam = WebcamConfig(
             name=webcam_data["name"],
+            title=webcam_data.get("title"),
+            valley=webcam_data.get("valley"),
             file_name_on_server=webcam_data.get("file_name_on_server"),
             url=webcam_data.get("url"),
             logo_placements=logo_placements,

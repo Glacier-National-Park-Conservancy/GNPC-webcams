@@ -3,6 +3,7 @@
 from datetime import date, datetime
 
 import pytest
+import yaml
 
 from config import (
     AirQualityConfig,
@@ -15,6 +16,7 @@ from config import (
 )
 from HttpWebcam import HttpWebcam
 from Overlays import AirQuality, CompositeOverlay, Logo
+from paths import resolve_path
 from Webcam import Webcam
 
 
@@ -373,3 +375,14 @@ def test_status_note_until_rejects_non_dates():
             status_note="x",
             status_note_until="next week",
         )
+
+
+def test_every_camera_has_a_title_and_a_listed_valley():
+    with open(resolve_path("webcams.yaml")) as f:
+        valleys = yaml.safe_load(f)["valleys"]
+    config = load_config("webcams.yaml")
+
+    for cam in [*config.webcams, *config.allsky_videos]:
+        assert cam.title, f"{cam.name} has no title"
+        assert cam.valley in valleys, f"{cam.name}: {cam.valley!r} isn't in valleys"
+    assert len(set(valleys)) == len(valleys)
