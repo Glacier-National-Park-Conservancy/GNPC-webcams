@@ -6,6 +6,7 @@ and videos from the glacier.org FTP server to HTML server.
 """
 
 import logging
+import os
 import sys
 import threading
 import traceback
@@ -22,6 +23,7 @@ setup_logging()
 logger = logging.getLogger(__name__)
 
 from config import (
+    apply_status_overrides,
     create_allsky_video_from_config,
     create_webcam_from_config,
     load_config,
@@ -29,8 +31,12 @@ from config import (
 from single_instance import AlreadyRunning, SingleInstance
 from Webcam import MOUNTAIN_TIME, Webcam
 
-# Load configuration from YAML
-app_config = load_config("webcams.yaml")
+# Load configuration from YAML, then the blackout and status-note changes made
+# in comms-tools, which writes them to an untracked file beside the checkout
+app_config = apply_status_overrides(
+    load_config("webcams.yaml"),
+    os.getenv("STATUS_OVERRIDES_FILE", "status-overrides.json"),
+)
 
 # Create webcam objects from configuration
 webcams = [

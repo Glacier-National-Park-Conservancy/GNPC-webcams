@@ -37,6 +37,17 @@ Each entry in `logo_placements` produces one published image; `subname` is appen
 
 To flag a known issue, give the camera a `status_note` (e.g. `status_note: Sensor 111211 offline, PurpleAir ticket open`). Each warning or error that camera logs then ends with `[known issue: ...]`, as does its traceback in the cron email, so whoever reads the logs can tell it is already being handled. That includes warnings from shared code like the PurpleAir badge, because each camera runs in a thread named after it. Add `status_note_until: 2026-11-15` to make the note lapse after that Mountain Time day, so a forgotten note can't hide a new problem. Allsky videos take the same two keys.
 
+### Changing blackouts and status notes from comms-tools
+
+The Webcams page in comms-tools changes `blackout`, `blackout_dates`, `status_note` and `status_note_until` without a commit. It writes them to `status-overrides.json` in the checkout (`STATUS_OVERRIDES_FILE` in `environment.env` to move it), and each run lays that file over `webcams.yaml`, so a change shows up within a minute. The file is gitignored, and deploys leave untracked files alone, so it never conflicts with a pull.
+
+```json
+{"cameras": {"lpp": {"blackout": true, "status_note": "Sensor down for winter"},
+             "mg": {"status_note": null}}}
+```
+
+A key that is present replaces the `webcams.yaml` value, `null` included (so `"status_note": null` clears a note set in YAML); an absent key leaves the YAML value in force. Allsky videos take only the two status-note keys. A bad entry — wrong type, unknown key, a camera no longer in `webcams.yaml` — is logged as a warning and skipped, and an unreadable file is ignored whole, so a broken edit falls back to `webcams.yaml` instead of stopping the run.
+
 ### Image Sources
 
 A webcam draws its frame from exactly one source — the loader rejects an entry that gives both or neither:
