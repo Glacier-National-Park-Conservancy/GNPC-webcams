@@ -26,7 +26,6 @@ webcams:
 
   - name: lpp
     file_name_on_server: lpp.jpg
-    blackout_dates: [2026-10-27]
     logo_placements:
       # NPS feed: logo only, no conditions badge.
       - - type: logo
@@ -44,7 +43,6 @@ webcams:
 
   - name: smv
     file_name_on_server: smv.jpg
-    blackout_dates: [2026-10-27]
     logo_placements:
       # Grouped placements: add more overlays to a group to composite them
       # into a single output image (see webcams-temperature.yaml for an
@@ -65,7 +63,6 @@ webcams:
 
   - name: hlt
     file_name_on_server: hlt.jpg
-    blackout_dates: [2026-10-27]
     logo_placements:
       # NPS feed: logo only, no conditions badge.
       - - type: logo
