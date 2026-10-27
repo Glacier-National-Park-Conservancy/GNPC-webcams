@@ -33,10 +33,9 @@ from Webcam import MOUNTAIN_TIME, Webcam
 
 # Load configuration from YAML, then the blackout and status-note changes made
 # in comms-tools, which writes them to an untracked file beside the checkout
-app_config = apply_status_overrides(
-    load_config("webcams.yaml"),
-    os.getenv("STATUS_OVERRIDES_FILE", "status-overrides.json"),
-)
+OVERRIDES_FILE = os.getenv("STATUS_OVERRIDES_FILE", "status-overrides.json")
+yaml_config = load_config("webcams.yaml")
+app_config = apply_status_overrides(yaml_config, OVERRIDES_FILE)
 
 # Create webcam objects from configuration
 webcams = [
@@ -52,6 +51,23 @@ cams = webcams + allsky_videos
 
 status_notes = app_config.active_status_notes(datetime.now(MOUNTAIN_TIME).date())
 install_status_notes(status_notes)
+
+
+def refresh_status():
+    """Bring blackouts and status notes up to date with the overrides file.
+
+    comms-tools can rewrite it at any moment. Re-reading it before each round,
+    not once per run, gets a change onto glacier.org within about half a minute.
+    Updated in place: StatusNoteFilter and handle_cam hold this same dict.
+    """
+    config = apply_status_overrides(yaml_config, OVERRIDES_FILE)
+    by_name = {c.name: c for c in config.webcams}
+    for cam in webcams:
+        cam.blackout = by_name[cam.name].blackout
+        cam.blackout_dates = frozenset(by_name[cam.name].blackout_dates)
+    status_notes.clear()
+    status_notes.update(config.active_status_notes(datetime.now(MOUNTAIN_TIME).date()))
+
 
 # Seconds to idle between the two rounds of a run. Cron fires every minute and
 # only one run executes at a time, so a run has to finish inside its minute or
@@ -107,6 +123,7 @@ if __name__ == "__main__":
                         # starves anything else using them.
                         Webcam._close_connections()
                         sleep(ROUND_INTERVAL)
+                        refresh_status()
                     main()
             finally:
                 Webcam._close_connections()

@@ -282,3 +282,46 @@ def test_a_rejected_body_is_not_fetched_again_until_it_changes(monkeypatch):
     cam._download_image()
     assert cam.source_unchanged is False
     assert cam.file_buffer.getvalue() == JPEG
+
+
+def published_record(validators_in_tmp):
+    return json.loads((validators_in_tmp / "gnpc-http-tm.json").read_text())
+
+
+@pytest.mark.parametrize("published_black", [False, True])
+def test_a_blackout_change_forces_a_fresh_fetch(
+    monkeypatch, validators_in_tmp, published_black
+):
+    """Toggling a blackout republishes now, not when the source next changes."""
+    monkeypatch.setattr(http_webcam_module.requests, "get", fake_get(VALIDATED))
+    cam = HttpWebcam(name="tm", url=URL, blackout=published_black)
+    monkeypatch.setattr(cam, "_process_overlay_files", lambda action: None)
+    cam.process()
+    cam.upload_image()
+    assert published_record(validators_in_tmp)["blacked_out"] is published_black
+    assert "If-None-Match" in cam._conditional_headers()
+
+    cam.blackout = not published_black
+
+    assert cam._conditional_headers() == {}
+
+
+def test_a_rejected_body_keeps_the_published_blackout_state(
+    monkeypatch, validators_in_tmp
+):
+    """Nothing new was published, so a black frame on glacier.org stays recorded."""
+    empty = FakeResponse(content=b"", headers={"ETag": '"new"'})
+    monkeypatch.setattr(
+        http_webcam_module.requests, "get", fake_get([VALIDATED, empty])
+    )
+    cam = HttpWebcam(name="tm", url=URL, blackout=True)
+    monkeypatch.setattr(cam, "_process_overlay_files", lambda action: None)
+    cam.process()
+    cam.upload_image()
+
+    cam._download_image()
+
+    record = published_record(validators_in_tmp)
+    assert record["etag"] == '"new"'
+    assert record["blacked_out"] is True
+    assert cam._conditional_headers()["If-None-Match"] == '"new"'
