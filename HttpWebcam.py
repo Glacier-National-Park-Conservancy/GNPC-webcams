@@ -38,6 +38,11 @@ class HttpWebcam(Webcam):
     hours at a time) is not an error to report: the frame already on
     glacier.org stays up, and the response's validators are recorded so the
     bad object answers 304 until the source replaces it.
+
+    The record also says whether the published frame was blacked out. When
+    that no longer matches the camera's blackout state, the fetch is made
+    unconditional, so turning a blackout on or off is published on the next
+    round rather than whenever the source next changes.
     """
 
     def __init__(
@@ -103,7 +108,12 @@ class HttpWebcam(Webcam):
                     f"of {response.headers.get('Content-Type')!r} that is not an "
                     "image; keeping the published frame until the source changes"
                 )
-                self._write_validators(validators)
+                # Nothing new reaches glacier.org, so the published frame's
+                # blackout state carries over.
+                previous = self._read_validators() or {}
+                self._write_validators(
+                    {**validators, "blacked_out": previous.get("blacked_out", False)}
+                )
                 self.source_unchanged = True
                 return
 
@@ -138,7 +148,9 @@ class HttpWebcam(Webcam):
         """
         super().upload_image(max_retries=max_retries, retry_delay=retry_delay)
         if self._pending_validators and not self.source_unchanged:
-            self._write_validators(self._pending_validators)
+            self._write_validators(
+                {**self._pending_validators, "blacked_out": self._blacked_out}
+            )
 
     # -- conditional-request bookkeeping -------------------------------------
 
@@ -163,6 +175,10 @@ class HttpWebcam(Webcam):
     def _conditional_headers(self):
         validators = self._read_validators()
         if not validators:
+            return {}
+        if validators.get("blacked_out", False) != self._blackout_active():
+            # glacier.org shows the frame with the other blackout state; a 304
+            # would leave it there until the source changes.
             return {}
         headers = {}
         if validators.get("etag"):
